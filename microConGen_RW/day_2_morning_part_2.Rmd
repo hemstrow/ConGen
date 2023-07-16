@@ -1,0 +1,214 @@
+---
+title: "Genetic diversity estimation with SNP data in R"
+author: "William Hemstrom"
+date: "2023-07-13"
+output:
+  html_document:
+      toc: true
+  pdf_document:
+      toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+library(snpR)
+setwd("..")
+```
+
+In this portion of the workshop, we'll now work on how to explore and visualize genetic diversity in R. We'll be using the same monarch RAD-seq SNP data as yesterday.
+
+# Questions
+
+Today, we are going to use this data to try and answer the following fundemental question:
+
+_Does genetic diversity vary across the Pacific monarch populations?_
+
+1. How do heterozygosity and the number of polymorphic loci vary across the Pacific?
+2. Do any populations show evidence of inbreeding or population bottlenecks/expansions?
+3. What are the contemporary effect sizes of our populations?
+4. How did the introduction history of Pacific monarchs shape patterns of allele frequencies?
+5. Do these results change depending on the filtering method we use?
+
+# Part 1: Estimating heterozygosity and number of polymorphic loci
+
+We'll be using the same package we used yesterday to plot a PCA/STRUCTURE/tree to estimate diversity today. The filtered datasets you used are available in pre-imported forms at `Data/monarchs_non_strict.RDS` and `Data/monarchs_strict.RDS`.
+
+```{r}
+monarchs <- readRDS("Data/monarchs_non_strict.RDS")
+monarchs_strict <- readRDS("Data/monarchs_strict.RDS")
+```
+
+We can run most of the statistics we want using a very similar syntax to what we used yesterday. One thing to note, though, is that stat functions in `snpR` are *overwrite safe*, meaning that you run new test to update an existing object, then fetch the results you want down when you are ready.
+
+Let's start by calculating observed heterozygosity ($H_{O}$). Like before, we'll specify that we want to split our calculations by population (`pop`).
+
+```{r}
+monarchs <- calc_ho(monarchs, facets = "pop")
+
+```
+
+We can then 'update' this object by adding expected heterozygosity ($H_{E}$):
+```{r}
+monarchs <- calc_he(monarchs, facets = "pop")
+```
+
+We view the results of these calculations using `get.snpR.stats()`, noting the facet and statistics we want.
+
+```{r}
+results <- get.snpR.stats(monarchs, facets = "pop", stats = c("he", "ho"))
+```
+
+The result has two parts: `$single` and `$weighted.means`, which contain the statistics per-loci and weighted averages over all loci for each population.
+
+```{r}
+results$weighted.means
+```
+
+We can plot these statistics using `ggplot`, like we talked about during the R introduction.
+
+```{r}
+library(ggplot2)
+ggplot(results$weighted.means, aes(x = subfacet, y = weighted_mean_ho)) +
+  geom_point() +
+  theme_bw()
+```
+
+
+---
+
+### Task:
+
+`monarchs` will now have both of these statistics calculated. Let's add three more statistics: 
+
+1. `calc_prop_poly()`: The proportion of polymorphic loci per population.
+2. `calc_pi()`: The average number of pairwise differences ($\pi$) between populations. A commonly used alternative to $H_{E}$.
+3. `calc_private()`: The number of alleles unique to each population.
+
+### Questions:
+
+1. How do $\pi$, $H_{O}$, and $H_{E}$ compare across populations. Do these make sense given the establishment history?
+2. How do the porportions of polymorphic loci compare? Does this show a different pattern than heterozygosity? Why?
+3. How do the numbers of private alleles vary between populations? Are there any problems with how we calculated this? Remember that these are alleles unique to our designated populations, and think about the structure results from yesterday.
+
+**Hint: the `pa` (private allele) column does not appear in the `$weighted.means` part, but does in `$single`. To get totals, you can ask for the sum across categories like this:**
+
+```{r}
+tapply(results$single$pa, # the value to work with
+       INDEX = results$single$subfacet, # what do we split by?
+       FUN = sum) # what do we do with the value?
+```
+
+---
+
+# Part 2: Inbreeding and basic demography
+
+In this part, we'll calculate two statistics: $F_{IS}$ and *Tajima's D*. You instructors will explain each of these to the class.
+
+***You may wish to stop here and wait for the instructor***
+
+---
+
+### Tasks:
+
+1. Calculate $F_{IS}$: use `calc_fis()` with the same syntax you used in Part 1, fetch with `get.snpR.stats()`, and plot.
+2. Calculate *Tajima's D*: use `calc_tajimas_d()`. Use the argument `global = TRUE` alongside `facets = "pop"` to tell `snpR` we want an overall *Tajima's D* and not sliding window values. Fetch with `get.snpR.stats()` and plot.
+
+### Questions:
+
+1. Do any populations display substantial inbreeding our outbreeding? Which populations are the most in/outbread?
+2. Do any populations show evidence of bottlenecks or expansions? Do these make biological sense? Remember that $D > 0$ is a bottleneck signal, $D < 0$ is an expansion signal. 
+
+---
+
+# Part 3: Estimating effective population sizes
+
+You previously used the NeEstimator program to estimate effect population sizes with the wolf microsat data, and we'll use it again here with the monarch data. However, we can interact with NeEstimator via `snpR` using the `calc_ne()` function. Like with `calc_structure()` yesterday, we need to specify the path to your `NeEstimator` executable. This might look something like `~/Downloads/NeEstimator/Ne2-1.exe` -- ask your instructors if you need help.
+
+There's one other major thing to consider here--linkage disequlibrium between markers on the same chromosome. Your instructor will explain this.
+
+***You may wish to stop here and wait for the instructor***
+
+We specify that we have chromosome data in our metadata using the `chr = ` argument and naming the chromosome facet `CHROM`.
+
+NeEstimator is also quite slow and not substantially improved by large numbers of loci, so we will subset to 3,000 loci with `nsnps = 3000`. Note that for publication you probably want ~30,000 instead. Since we manually filtered on `MAF` with this data, we also need to tell NeEstimator not to filter on MAF again with `pcrit = 0`.
+
+```{r}
+monarchs <- calc_ne(monarchs,
+                    facets = "pop",
+                    pcrit = 0,
+                    chr = "CHROM", 
+                    nsnps = 3000,
+                    NeEstimator_path = "/usr/bin/Ne2-1.exe") # make sure to fix your path!
+```
+
+---
+
+### Task
+
+Fetch the Ne estimates as before. The estimates are stored in `$pop` this time, not `$weighted.means`. The `lCIp`, `lCIj` etc. columns give the parametric and jacknifed confidence intervals around the $N_{e}$ estimate.
+
+### Question:
+1. Which populations have larger effective sizes? Are you confident in those estimates?
+
+***Hint: `Inf` results indicate cases were sample sizes are too small and/or $N_{e}$ is too big to estimate correctly.***
+
+---
+
+# Part 4: The Site Frequency Spectra (SFS)
+
+We're now going to calcuate SFSs for all of our populations. Your instructor should have explained what a SFS is and why they are important during part 2, but will disucss two-dimensional SFSs (2D-SFSs) and why SFSs need "projection" here. 
+
+***You may wish to stop here and wait for the instructor***
+
+Calculating a SFS is a little different because it returns a very different result and therefore is handled a little differently. Fundamentally, `calc_sfs()` *isn't overwite safe*--it returns a SFS directly. We also need to specify the specific population(s) we want a SFSs for a projection for each population.
+
+```{r}
+sfs <- calc_sfs(monarchs, facet = "pop", 
+                pops = "ENA", # the population 
+                projection = 80) # the number of gene copies we want (each individual has two copies)
+```
+
+We can plot the sfs with `plot_sfs()`.
+
+```{r}
+plot_sfs(sfs)
+```
+
+We can also skip `calc_sfs()` and plot directly from `monarchs`.
+
+```{r}
+plot_sfs(monarchs, "pop", pops = "ENA", projection = 80)
+```
+
+2D-SFSs are calculated much the same way.  Here, we'll do so for the Guam and Rota populations.
+
+```{r}
+plot_sfs(monarchs, "pop", pops = c("GUA", "ROT"), projection = c(20, 20))
+```
+
+Note that the function will tell you how many segregating sites (loci) remained in each SFS after projection. Higher is better generally--you should try several projections to see what works best!
+
+---
+
+### Questions:
+
+1. How do 1D-SFSs vary between North America, Hawaii, and Guam? Does this make biological sense?
+2. What do 2D-SFSs look like between North America and Hawaii, Hawaii and Guam, and Hawaii and Queensland? Do they make biological sense?
+3. Compare the Guam/Rota 2D-SFS to a ENA/WNA 2D-SFS--do they make sense given structure results from yesterday?
+
+---
+
+# Part 5: Effect of filtering
+
+Next, if you have time, try running everything above with the strictly filtered dataset and answer the following questions. If you are limited on time, you might want to focus on Part 2, specifically on Tajima's D.
+
+---
+
+### Questions:
+
+1. How do heterozygosity and polymorphic proportions change between filtering levels?
+2. How does Tajima's D change between filtering levels. Which do you think is more reliable? Think carefully about MAF filtering and the SFS. If you were put in charge of managing a population, how might this effect your conservation decisions? Don't hesitate to ask your instructors for help!
+3. How to effective size estimates change? Is one estimate more reliable than the other?
+4. How do SFSs change using the filtered data? Does it make since to use a MAF filter with a SFS? Could you suggest a different set of filters to do make more trustworth SFSs?
+
+

@@ -1,0 +1,152 @@
+---
+title: "Fst and Machine Learning assigment tests in R"
+author: "William Hemstrom"
+date: "2023-07-13"
+output:
+  html_document:
+      toc: true
+  pdf_document:
+      toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+library(snpR)
+```
+
+This portion of the workshop is split between two sections:
+
+1. $F_{ST}$ calculation with `snpR` with SNP data (very quick!).
+2. Assignment testing via machine learning with `ranger`.
+
+# Part 1 $F_{ST}$ in R
+
+We're going to use the non-strict monarch dataset here--go ahead and load it in again if you need to:
+
+```{r}
+monarchs <- readRDS("Data/monarchs_non_strict.RDS")
+```
+
+Running $F_{ST}$ is no harder than running anything else with snpR and uses the same syntax.
+
+```{r}
+monarchs <- calc_pairwise_fst(monarchs, "pop")
+res <- get.snpR.stats(monarchs, "pop", "fst")
+res$weighted.means
+```
+
+For future reference, you can bootstrap significance values by shuffling individuals between populations using the `boot` argument. The `$weighted.mean` results will then contain $p$-values against the null hypothesis that homozygosity is not reduced by population structuring.
+
+We can plot our $F_{ST}$ values in a heatmap using a plotting function:
+
+```{r}
+plot_pairwise_fst_heatmap(monarchs, "pop")
+```
+
+
+---
+
+### Questions:
+
+1. Which pairs of populations generally have very low $F_{ST}$ values? Which pairs generally have very high $F_{ST}$ values? Does this make sense given structring results from yesterday?
+
+2. Re-run the $F_{ST}$ test with the strictly filtered data and compare. Do $F_{ST}$ values generally go up or down? Are any population comparisons more influenced by filtering than others?
+
+---
+
+
+***You should to stop here and wait for the instructor***
+
+# Part 2: Assignment testing via machine learning in R
+
+The other assignment testing approaches we've talked about (and hopefully demo'd!) are all biologically informed and "model based", but as your instructors discussed, machine learning approaches are very much not. We're going to try building a machine learning model for both the wolves and the monarchs. We'll start with the monarchs.
+
+We have two core questions:
+
+1. Guam and Rota islands are about 60km apart. Can we reliably assign individuals to one of these two populations based on their genotypes?
+
+2. The eastern and western North American populations breed and winter much farther apart. Can we reliably assign individuals to one of these two populations based on their genotypes instead?
+
+We're going to use the `ranger`, a random forest model R package, to test this.
+
+```{r}
+install.packages(ranger)
+library(ranger)
+```
+
+
+First, we need to make sure we only test with the populations of interest and set aside a chunck of data to test our model with (our testing data) and use the rest to build the model (our training data). Subsetting is easy: we say the facet we want, then the categories to keep:
+
+```{r}
+GUA_ROT <- monarchs[pop = c("ENA", "WNA")]
+```
+
+Then build our two datasets. We'll hold 20% back to test our predictions. We'll save our datasets in a numeric format where each genotype is designated as 0, 1, or 2 depending on the minor allele count. We can use `format_snps()` to do this.
+
+```{r}
+
+test_samples <- sample(x = nsamps(GUA_ROT), # how many samples do we have?
+                       size = nsamps(GUA_ROT)*.2) # how many do we want to hold back?
+
+
+GUA_ROT_num <- format_snps(GUA_ROT, 
+                           output = "sn")
+
+GUA_ROT_num <- GUA_ROT_num[,-c(1:7)] # remove SNP metadata--just need genotypes
+
+# remove samples and transpose (individuals in rows)
+GR_test <- t(GUA_ROT_num[,test_samples])
+GR_train <- t(GUA_ROT_num[,-test_samples])
+```
+
+Lastly, we need to add our population metadata in. We can do this by fetching it with `sample.meta()` and subsetting it. We also need to turn our data into a `data.frame()` so we can attach the population info. 
+
+```{r}
+meta <- sample.meta(GUA_ROT)
+GR_train <- as.data.frame(GR_train)
+GR_test <- as.data.frame(GR_test)
+GR_train$pop <- as.factor(meta$pop[-test_samples])
+```
+
+
+We can then run the model using the `ranger()` function. We need to specify the following arguments
+
+* `response = "pop"`: specify that the variable we are building a model to predict is population. Note that the `facet` argument should be left blank, because we aren't *splitting our data by population* and running the model for each.
+* `num.trees = 10000`: the number of trees to build. Should be higher (~1 million) for publication if it helps make better predictions.
+
+The `mtry` variable is also important. `mtry` is the number of variables to split by at each node of each tree. Setting this equal to the number of SNPs in the data is usually a good bet.
+
+```{r}
+rf <- ranger(data = GR_train, num.trees = 10000, 
+       mtry = ncol(GR_train) - 1, # minus one for the pop column we added
+       dependent.variable.name = "pop") # tell it that we are predicting population
+```
+
+We can test the model's predictions using our testing data with the `predict()` function. The predictions will be in `$predictions`.
+
+```{r}
+test_res <- predict(rf, data = GR_test)
+```
+
+We can compare the model predictions to the populations of your test samples with `meta$pop[test_samples]`, then use a logical to get the percentage of correct assignments:
+
+```{r}
+# compare visually
+cbind(as.character(test_res$predictions), meta$pop[test_samples])
+
+# get accuracy percentage
+mean(as.character(test_res$predictions) == meta$pop[test_samples])*100
+
+```
+
+---
+
+### Questions:
+
+1. Was the Random Forest model able to accurately predict your test samples?
+
+2. Try running everything again, but sub out Guam and Rota (GUA and ROT) for the two North American populations (ENA and WNA). How did it perform here? **hint: you can run everything exactly the same, just switch the pops you keep in the very beginning to c(`ENA`, `WNA`)** The RF may take a few minutes to build.
+
+3. Do these results make sense given the structure results from earlier in the workshop?
+
+---
