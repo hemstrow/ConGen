@@ -203,6 +203,60 @@ ggplotly(pca$plots$pca)
 
 ## DAPC
 
+```{r, include = T, echo = F, warning = F}
+
+library(snpR)
+
+monarch_vcf <- read_vcf("monarchs/monarchs.vcf", sample.meta = "monarchs/monarch_metadata.tsv")
+monarch_data <- format_snps(monarch_vcf, output = "adegenet", facets = "pop")
+
+```
+
+### See a summary of the dataset
+
+```{r, include = T, echo = F}
+monarch_data
+```
+
+A DAPC can also be a great way to look for structure in your data if you don't have a good prior for population assignments or the number of populations. This method makes use of the *find.clusters* function within *adegenet* to identify the optimal number of clusters (*k*) through K-means clustering. A measure of goodness-of-fit is provided through Bayesian information criterion (BIC) model selection. 
+
+In the code below, we will first run the *find.clusters* command, which will prompt you to select the optimal number of clusters (*k*). This is usually the inflection point where the BIC value is the lowest. However, note that it is often beneficial to plot the results of multiple *k* values, given that one model may not be significantly better than the others.
+
+Again, we choose the number of PCs to be 85-95% of the total number of individuals.
+
+```{r, include = T, echo = F}
+cluster <- find.clusters(monarch_data, max.n.clust = 20, n.pc = 170, stat = "BIC")
+
+#Assign individuals to the groups determined in the command above
+monarch_data$pop <- cluster$grp
+
+#Run the DAPC on the assignments from "find.clusters"
+monarch_data.dapc <- dapc(monarch_data, n.pca = 170, n.da = 2)
+
+#Plot the results in PCA-space
+scatter(monarch_data.dapc, scree.da = TRUE, scree.pca = TRUE, posi.pca = "bottomright", posi.da = "bottomleft", clab = 0)
+
+#Produce a plot of individual membership to each of the clusters
+compoplot(monarch_data.dapc, lab = "", txt.leg = seq(levels(monarch_data.dapc$assign)))
+
+```
+
+Let's again find the optimal number of PCs to use in DAPC analysis, then re-do the DAPC analysis with that number of PCs.
+
+```{r, include = T, echo = F}
+opt.pca <- optim.a.score(monarch_data.dapc)
+
+monarch_data.dapc2 <- dapc(monarch_data, n.pca = opt.pca$best, n.da=2)
+scatter(monarch_data.dapc2, scree.da = TRUE, scree.pca = TRUE, posi.pca = "topleft", posi.da = "bottomleft", clab = 0)
+
+compoplot(monarch_data.dapc2, lab = "", txt.leg = seq(levels(monarch_data.dapc$assign)))
+
+```
+
+In this case, 57 principal components are deemed optimal to use.
+
+*Q: How did results of population structure change when the number of PCs included in the analysis changed?*
+
 ## STRUCTURE
 
 Neither PCA or DAPC are explicitly `genetics` methods--they both are designed to explore any kind of high-dimension quantitative data (although the specific versions we used here are optimized a bit for genetics). STRUCTURE, on the other hand, is designed from the ground up to use genetic data. Your instructor will stop here and talk about STRUCTURE and how it works.
@@ -236,7 +290,7 @@ struct <- plot_structure(sub_monarchs,
                          facet = "pop",
                          method = "structure",
                          k = 4, 
-                         iterations = 1000, clu
+                         iterations = 1000, 
                          burnin = 100,
                          facet.order = c("ENA", "WNA", "HAW", 
                                          "GUA", "SAI", "ROT",

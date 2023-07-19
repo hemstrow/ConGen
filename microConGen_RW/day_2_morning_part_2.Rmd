@@ -25,9 +25,8 @@ _Does genetic diversity vary across the Pacific monarch populations?_
 
 1. How do heterozygosity and the number of polymorphic loci vary across the Pacific?
 2. Do any populations show evidence of inbreeding or population bottlenecks/expansions?
-3. What are the contemporary effect sizes of our populations?
-4. How did the introduction history of Pacific monarchs shape patterns of allele frequencies?
-5. Do these results change depending on the filtering method we use?
+3. How did the introduction history of Pacific monarchs shape patterns of allele frequencies?
+4. Do these results change depending on the filtering method we use?
 
 # Part 1: Estimating heterozygosity and number of polymorphic loci
 
@@ -120,41 +119,8 @@ In this part, we'll calculate two statistics: $F_{IS}$ and *Tajima's D*. You ins
 
 ---
 
-# Part 3: Estimating effective population sizes
 
-You previously used the NeEstimator program to estimate effect population sizes with the wolf microsat data, and we'll use it again here with the monarch data. However, we can interact with NeEstimator via `snpR` using the `calc_ne()` function. Like with `calc_structure()` yesterday, we need to specify the path to your `NeEstimator` executable. This might look something like `~/Downloads/NeEstimator/Ne2-1.exe` -- ask your instructors if you need help.
-
-There's one other major thing to consider here--linkage disequlibrium between markers on the same chromosome. Your instructor will explain this.
-
-***You may wish to stop here and wait for the instructor***
-
-We specify that we have chromosome data in our metadata using the `chr = ` argument and naming the chromosome facet `CHROM`.
-
-NeEstimator is also quite slow and not substantially improved by large numbers of loci, so we will subset to 3,000 loci with `nsnps = 3000`. Note that for publication you probably want ~30,000 instead. Since we manually filtered on `MAF` with this data, we also need to tell NeEstimator not to filter on MAF again with `pcrit = 0`.
-
-```{r}
-monarchs <- calc_ne(monarchs,
-                    facets = "pop",
-                    pcrit = 0,
-                    chr = "CHROM", 
-                    nsnps = 3000,
-                    NeEstimator_path = "/usr/bin/Ne2-1.exe") # make sure to fix your path!
-```
-
----
-
-### Task
-
-Fetch the Ne estimates as before. The estimates are stored in `$pop` this time, not `$weighted.means`. The `lCIp`, `lCIj` etc. columns give the parametric and jacknifed confidence intervals around the $N_{e}$ estimate.
-
-### Question:
-1. Which populations have larger effective sizes? Are you confident in those estimates?
-
-***Hint: `Inf` results indicate cases were sample sizes are too small and/or $N_{e}$ is too big to estimate correctly.***
-
----
-
-# Part 4: The Site Frequency Spectra (SFS)
+# Part 3: The Site Frequency Spectra (SFS)
 
 We're now going to calcuate SFSs for all of our populations. Your instructor should have explained what a SFS is and why they are important during part 2, but will disucss two-dimensional SFSs (2D-SFSs) and why SFSs need "projection" here. 
 
@@ -198,7 +164,7 @@ Note that the function will tell you how many segregating sites (loci) remained 
 
 ---
 
-# Part 5: Effect of filtering
+# Part 4: Effect of filtering
 
 Next, if you have time, try running everything above with the strictly filtered dataset and answer the following questions. If you are limited on time, you might want to focus on Part 2, specifically on Tajima's D.
 

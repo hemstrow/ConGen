@@ -1,0 +1,135 @@
+Feedback and chat: https://pad.riseup.net/p/r_workshop_day_2
+
+drive: https://drive.google.com/drive/folders/1Ojin8dHSAAIT3WPppHl13V9vjwkzclMW?usp=sharing
+
+Introductions. 
+
+Introduction to R
+	Programming languages:
+		5 minute excercise -- write instructions to an alien for making a piece of buttered toast.
+			Assume alien knows what things are (knife, bread, a toaster), but doesn't know how they work.
+	R vs R studio:
+		R is a piece of music, Rstudio is your iPod/phone.
+
+Objects, classes, access, and vectorized operations.
+	Basic math and numbers
+	characters
+	Assignment
+	Vectors and c() and ":"
+		 numeric and character
+	Vector access with brackets
+		Access by INDEX, not identity! Assign four volunteers to indices and give them numbers to shout when called.
+		numbers
+		c()
+		negative indices
+	Vector math and recycling
+	Logical and factors
+	matrices
+		access by row and column
+	data.frames (use mtcars)
+		access by column name "$" or c()
+		vector math redux
+	lists
+
+File Structures and Reading Data
+	Diagram out a file scructure
+		Absolute and relative paths
+	Reading data with R
+		With the import data tool in Rstudio
+			Example: have students download the monarch_example.txt file. Import first with the import tool, note the filepath, then using read.table.
+				Note: tab completion
+		With read.table
+
+Subsetting
+	Subsetting by logical vectors
+	Logical operators
+	Subsetting via logical operators
+		Start by just grabbing the Days_to_Pupation column of mon
+		Make a logical vector for Treatment == Constant
+		Subset Days_to_pupation by treatment
+		Combine into one call, rows and columns
+	OR, AND, !, and %in%
+		%in%: use iris$Species
+
+Functions
+	Anatomy of a function (arguments)
+	What is a function under-the-hood
+	? and help()
+	How to google
+		Include "R"
+		How to find the function for what you want to do.
+		
+Rmarkdown
+	What is RMD
+	Basic text formatting
+		Headers
+		lists
+	Chunks
+		making chunks
+		running chunks
+		
+Git
+	What is a github repo
+		Version control
+		Utility -- why do we care
+			Great for organization
+			Great for collaboration
+	Making a new github repo
+		Log on to github, make and copy an access token.
+			Settings -> Developer settings (at the bottom) -> Personal access tokens -> Generate token
+				for now, copy and paste this somewhere
+		make a new empty repo
+		Clone the repo, make new R project from version control
+	Working with git
+		Add, commit, push, and pull with Rstudio
+			Terminal:
+				What is the terminal (access to command line linux)
+				git config global --user.name "hemstrow"
+				git config global --user.email "whemstrom@ucdavis.edu"
+			Need your token to push!
+				can save this with certificates package, not covered here.
+
+
+Packages
+	What are packages
+	Installing packages: CRAN
+		install remotes
+	Library vs ::
+	Installing packages: other sources
+		remotes install snpR
+
+Plotting with ggplot2
+	About Layers (during snpR install)
+		when to quote
+		Adding layers
+			point plus smooth (lm)
+	
+	Use the monarch data:
+		Body_Mass vs Marea, with Treatment as color
+		
+	Vs base plot()
+
+Writing functions
+	No function for sample standard error, write one (sd/sqrt(n))
+		Run on several columns of mon
+	Var function exists, but write one too:
+		sum(x - mean(x))/n
+		Oops! This is a sample, not the population! Need to use n - 1:
+			Only need to change in one place!
+
+Collaboration with github
+	Adding people to repos
+	merge errors
+		fix errors, delete merge head, commit and push
+
+snpR intro
+	Facets in snpR
+	Object access:
+		stats
+		genotypes
+		metadata
+		subsetting
+
+
+Workshop data: download from github or via zip drive
+	https://github.com/hemstrow/ConGen
