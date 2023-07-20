@@ -12,7 +12,6 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
 library(snpR)
-setwd("..")
 ```
 
 In this portion of the workshop, we'll now work on how to explore and visualize population structure using the same tools (DAPC, PCA, STRUCTURE, and a tree) in R using some RADseq SNP data.
@@ -21,15 +20,15 @@ First, let's discuss the data and background a bit:
 
 # Monarch Butterflies in the Pacific
 
-![Monarch Butterfy (*Danaus plexippus*), (c) William Hemstrom 2022](./accessory_files/monarch_photo.jpg){width="454"}
+![Monarch Butterfy (*Danaus plexippus*), (c) William Hemstrom 2022](scripts/accessory_files/monarch_photo.jpg){width="454"}
 
 Monarch Butterflies (*Danaus plexippus*) are a charismatic, migratory insect species originally from North America. Over the last \~200 years, they have travelled to a series of islands across the Pacific Ocean. They reached Hawaii in the 1840s, Australia in the 1870s, and in roughly 1900, they reached the Mariana Islands, including Guam and Rota islands. They are non migratory almost everywhere in the western Pacific, although they secondarily re-aquired migratory behavior in southern Australia and New Zealand in the 1930s.
 
-![Expansion of monarch butterflies across the Pacific (Hemstrom et al in revision)](./accessory_files/monarch_map.jpg){width="454"}
+![Expansion of monarch butterflies across the Pacific (Hemstrom et al in revision)](scripts/accessory_files/monarch_map.jpg){width="454"}
 
 In North America, the migratory population can be roughly divided into two "populations" -- one in western North America that spends the winter in California and their summer in the western United States and one in eastern North America that winters in central Mexico and summer in the eastern United States.
 
-![Monarch migratory pathways in North America](./accessory_files/monarch_map_NAM.png){width="454"}
+![Monarch migratory pathways in North America](scripts/accessory_files/monarch_map_NAM.png){width="454"}
 
 Note that they are also native, non-migrants in the Carribean, Central, and South America, including Colombia where the first photo shown here was taken.
 
@@ -203,59 +202,61 @@ ggplotly(pca$plots$pca)
 
 ## DAPC
 
-```{r, include = T, echo = F, warning = F}
+DAPC is an alternative approach to PCA that sets individuals into a defined number of clusters using the same underlying PCA data. We'll run it using `adegenet`.
 
-library(snpR)
-
-monarch_vcf <- read_vcf("monarchs/monarchs.vcf", sample.meta = "monarchs/monarch_metadata.tsv")
-monarch_data <- format_snps(monarch_vcf, output = "adegenet", facets = "pop")
-
+```{r, eval=FALSE}
+library(adegenet)
 ```
 
-### See a summary of the dataset
+A DAPC can also be a great way to look for structure in your data if you don't have a good prior for population assignments or the number of populations. This method makes use of the `find.clusters` function within `adegenet` to identify the optimal number of clusters (*k*) through K-means clustering. A measure of goodness-of-fit is provided through Bayesian information criterion (BIC) model selection. 
 
-```{r, include = T, echo = F}
-monarch_data
-```
-
-A DAPC can also be a great way to look for structure in your data if you don't have a good prior for population assignments or the number of populations. This method makes use of the *find.clusters* function within *adegenet* to identify the optimal number of clusters (*k*) through K-means clustering. A measure of goodness-of-fit is provided through Bayesian information criterion (BIC) model selection. 
-
-In the code below, we will first run the *find.clusters* command, which will prompt you to select the optimal number of clusters (*k*). This is usually the inflection point where the BIC value is the lowest. However, note that it is often beneficial to plot the results of multiple *k* values, given that one model may not be significantly better than the others.
+In the code below, we will first run the `find.clusters` command, which will prompt you to select the optimal number of clusters (*k*). This is usually the inflection point where the BIC value is the lowest. However, note that it is often beneficial to plot the results of multiple *k* values, given that one model may not be significantly better than the others.
 
 Again, we choose the number of PCs to be 85-95% of the total number of individuals.
 
-```{r, include = T, echo = F}
-cluster <- find.clusters(monarch_data, max.n.clust = 20, n.pc = 170, stat = "BIC")
+```{r, eval=FALSE}
+
+monarchs_adeg <- format_snps(monarchs, "adegenet", facet = "pop") # format for adegenet
+
+cluster <- find.clusters(monarchs_adeg, max.n.clust = 20, n.pc = 170, stat = "BIC")
 
 #Assign individuals to the groups determined in the command above
-monarch_data$pop <- cluster$grp
+monarch_adeg$pop <- cluster$grp
 
 #Run the DAPC on the assignments from "find.clusters"
-monarch_data.dapc <- dapc(monarch_data, n.pca = 170, n.da = 2)
+monarch_adeg.dapc <- dapc(monarch_adeg, n.pca = 170, n.da = 2)
 
 #Plot the results in PCA-space
-scatter(monarch_data.dapc, scree.da = TRUE, scree.pca = TRUE, posi.pca = "bottomright", posi.da = "bottomleft", clab = 0)
+scatter(monarch_adeg.dapc, scree.da = TRUE, scree.pca = TRUE, posi.pca = "bottomright", posi.da = "bottomleft", clab = 0)
 
 #Produce a plot of individual membership to each of the clusters
-compoplot(monarch_data.dapc, lab = "", txt.leg = seq(levels(monarch_data.dapc$assign)))
+compoplot(monarch_adeg.dapc, lab = "", txt.leg = seq(levels(monarch_adeg.dapc$assign)))
 
 ```
 
 Let's again find the optimal number of PCs to use in DAPC analysis, then re-do the DAPC analysis with that number of PCs.
 
-```{r, include = T, echo = F}
-opt.pca <- optim.a.score(monarch_data.dapc)
+```{r, eval=FALSE}
+opt.pca <- optim.a.score(monarch_adeg.dapc)
 
-monarch_data.dapc2 <- dapc(monarch_data, n.pca = opt.pca$best, n.da=2)
-scatter(monarch_data.dapc2, scree.da = TRUE, scree.pca = TRUE, posi.pca = "topleft", posi.da = "bottomleft", clab = 0)
+monarch_adeg.dapc2 <- dapc(monarch_adeg, n.pca = opt.pca$best, n.da=2)
+scatter(monarch_adeg.dapc2, scree.da = TRUE, scree.pca = TRUE, posi.pca = "topleft", posi.da = "bottomleft", clab = 0)
 
-compoplot(monarch_data.dapc2, lab = "", txt.leg = seq(levels(monarch_data.dapc$assign)))
+compoplot(monarch_adeg.dapc2, lab = "", txt.leg = seq(levels(monarch_adeg.dapc$assign)))
 
 ```
 
 In this case, 57 principal components are deemed optimal to use.
 
-*Q: How did results of population structure change when the number of PCs included in the analysis changed?*
+---
+
+### Questions:
+
+1. How did results of population structure change when the number of PCs included in the analysis changed?
+2. Does using the filtered data produce similar results?
+3. How do the results differ from the PCA results?
+
+---
 
 ## STRUCTURE
 
