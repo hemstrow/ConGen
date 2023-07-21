@@ -482,7 +482,8 @@ Setting this equal to the number of SNPs in the data is usually a good
 bet.</p>
 <pre class="r"><code>rf &lt;- ranger(data = GR_train, num.trees = 10000, 
        mtry = ncol(GR_train) - 1, # minus one for the pop column we added
-       dependent.variable.name = &quot;pop&quot;) # tell it that we are predicting population</code></pre>
+       dependent.variable.name = &quot;pop&quot;, # tell it that we are predicting population
+       keep.inbag = TRUE) # for error rate estimation later </code></pre>
 <p>We can test the model’s predictions using our testing data with the
 <code>predict()</code> function. The predictions will be in
 <code>$predictions</code>.</p>
@@ -495,6 +496,20 @@ cbind(as.character(test_res$predictions), meta$pop[test_samples])
 
 # get accuracy percentage
 mean(as.character(test_res$predictions) == meta$pop[test_samples])*100</code></pre>
+<p>Lastly, we can get prediction error rates to figure out how confident
+we are in our estimations. We need to install the
+<code>forestError</code> package for this</p>
+<pre class="r"><code>install.packages(&quot;forestError&quot;)
+library(forestError)
+
+err &lt;- forestError::quantForestError(rf, # the forest 
+                              X.train = GR_train[,-ncol(GR_train)], # the training data
+                              X.test = GR_test, # the test data
+                              Y.train = GR_train$pop) # the classifications of the training data
+
+err</code></pre>
+<p>The column <code>mcr</code> is the resulting error rate for each
+prediction.</p>
 <hr />
 <div id="questions-1" class="section level3">
 <h3>Questions:</h3>

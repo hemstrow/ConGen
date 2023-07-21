@@ -119,7 +119,8 @@ The `mtry` variable is also important. `mtry` is the number of variables to spli
 ```{r}
 rf <- ranger(data = GR_train, num.trees = 10000, 
        mtry = ncol(GR_train) - 1, # minus one for the pop column we added
-       dependent.variable.name = "pop") # tell it that we are predicting population
+       dependent.variable.name = "pop", # tell it that we are predicting population
+       keep.inbag = TRUE) # for error rate estimation later 
 ```
 
 We can test the model's predictions using our testing data with the `predict()` function. The predictions will be in `$predictions`.
@@ -138,6 +139,23 @@ cbind(as.character(test_res$predictions), meta$pop[test_samples])
 mean(as.character(test_res$predictions) == meta$pop[test_samples])*100
 
 ```
+
+Lastly, we can get prediction error rates to figure out how confident we are in our estimations. We need to install the `forestError` package for this
+
+```{r}
+install.packages("forestError")
+library(forestError)
+
+err <- forestError::quantForestError(rf, # the forest 
+                              X.train = GR_train[,-ncol(GR_train)], # the training data
+                              X.test = GR_test, # the test data
+                              Y.train = GR_train$pop) # the classifications of the training data
+
+err
+
+```
+
+The column `mcr` is the resulting error rate for each prediction.
 
 ---
 
