@@ -1,6 +1,5 @@
 ---
 title: "ConGen 2023: Filtering, re-filtering, HW-tests, and detecting selection signatures"
-output: html_document
 date: "2023-08-25"
 output:  
   html_document:
@@ -8,7 +7,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-library(snpR); library(ggplot2); library(plotly); library(pcadapt)
+library(snpR); library(ggplot2); library(plotly)
 
 ```
 
@@ -151,7 +150,7 @@ For comparison, we'll try a more stringent filtering regime with:
 * keep individuals sequenced only in 75% of loci
 * keep loci sequenced only in 75% of individuals
 
-```{r, warning=FALSE,message=FALSE,include=FALSE,echo=TRUE}
+```{r, warning=FALSE,message=FALSE,include=FALSE,echo=TRUE,eval=FALSE}
 monarchs_strict <- filter_snps(monarchs, maf = 0.05, maf_facets = "pop", hwe = 0.001, hwe_facets = "pop", min_ind = .75, min_loci = .75)
 ```
 
@@ -191,18 +190,6 @@ pca$plots$pca
 
 2. Based on the PCA structure results, do you have any hypotheses about the establishment pathway in the Pacific?
 
-
-***Tip: if you are having trouble figuring out which color is which, you can use the `plotly` package to generate an intractable plot that you can mouse over for population names***
-
-```{r,eval=FALSE}
-# install and load
-library(plotly)
-
-# make an interactive plot
-ggplotly(pca$plots$pca)
-
-```
-
 ---
 
 # Objective 2: The effect of filtering on population genetic diversity
@@ -212,31 +199,31 @@ We can run most of the statistics we want using a very similar syntax to what we
 
 Let's start by calculating observed heterozygosity ($H_{O}$). Like before, we'll specify that we want to split our calculations by population (`pop`).
 
-```{r}
+```{r, eval=FALSE}
 monarchs <- calc_ho(monarchs, facets = "pop")
 
 ```
 
 We can then 'update' this object by adding expected heterozygosity ($H_{E}$):
-```{r}
+```{r, eval=FALSE}
 monarchs <- calc_he(monarchs, facets = "pop")
 ```
 
 We view the results of these calculations using `get.snpR.stats()`, noting the facet and statistics we want.
 
-```{r}
+```{r, eval=FALSE}
 results <- get.snpR.stats(monarchs, facets = "pop", stats = c("he", "ho"))
 ```
 
 The result has two parts: `$single` and `$weighted.means`, which contain the statistics per-loci and weighted averages over all loci for each population.
 
-```{r}
+```{r, eval=FALSE}
 results$weighted.means
 ```
 
 We can plot these statistics using `ggplot`.
 
-```{r}
+```{r, eval=FALSE}
 library(ggplot2)
 ggplot(results$weighted.means, aes(x = subfacet, y = weighted_mean_ho)) +
   geom_point() +
@@ -270,7 +257,7 @@ Next, we'll look for evidence of inbreeding and bottlnecks using $F_{IS}$ and *T
 1. Calculate $F_{IS}$: use `calc_fis()` with the same syntax you used in Part 1, fetch with `get.snpR.stats()`, and plot.
 2. Calculate *Tajima's D*: use `calc_tajimas_d()`. Use the argument `global = TRUE` alongside `facets = "pop"` to tell `snpR` we want an overall *Tajima's D* and not sliding window values. Fetch with `get.snpR.stats()` and plot.
 
-### Objective 2 Questions part 1:
+### Objective 2 Questions part 2:
 
 1. Do any populations display substantial inbreeding our outbreeding? Which populations are the most in/outbread?
 2. Do any populations show evidence of bottlenecks or expansions? Do these make biological sense? Remember that $D > 0$ is a bottleneck signal, $D < 0$ is an expansion signal. 
@@ -307,7 +294,7 @@ p1balancing <- data.frame(Frequency = c(dnorm(seq(-5, 5, .1)), dnorm(seq(-5, 5, 
 
 p1d <- rbind(p1dir, p1stab, p1balancing)
 
-p1 <- ggplot(p1d, aes(x = Phenotype, y = Frequency, color = Time)) + geom_line(linewidth = 1) + theme_bw() + facet_wrap(~Selection_Type, nrow = 1) + theme(strip.background = element_blank()) + scale_color_viridis_d(option = "inferno", end = .5)
+p1 <- ggplot(p1d, aes(x = Phenotype, y = Frequency, color = Time)) + geom_line(size = 1) + theme_bw() + facet_wrap(~Selection_Type, nrow = 1) + theme(strip.background = element_blank()) + scale_color_viridis_d(option = "inferno", end = .5)
 p1
 ```
 
